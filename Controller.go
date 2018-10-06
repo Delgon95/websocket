@@ -39,9 +39,9 @@ type GameMove struct {
 
 type Player struct {
   Name string
-  Room *Room
-  CurrentSession *Session
-  MoveQueue chan GameMove
+  Room *Room              `json:"-"`
+  CurrentSession *Session `json:"-"`
+  MoveQueue chan GameMove `json:"-"`
 }
 
 type Info struct {
@@ -49,9 +49,8 @@ type Info struct {
 }
 
 type Room struct {
-  Players [] *Player
   Name string
-  JoinMutex *sync.Mutex `json:"-"`
+  Players [] *Player
 }
 
 type Rooms struct {
@@ -123,7 +122,8 @@ func HandleSession(connection *websocket.Conn) {
       for i := range Server.Sessions {
         if Server.Sessions[i] == session {
           Server.Sessions = append(Server.Sessions[:i],
-                                   Server.Sessions[i + 1:]...)
+          Server.Sessions[i + 1:]...)
+          break
         }
       }
       Server.ServerMutex.Unlock()
@@ -152,8 +152,8 @@ func (session *Session) InformSession(err error) {
 
 func (session *Session) CreatePlayer(message Message) {
   if (session.Player != nil) {
-     session.InformSession(errors.New("Player already created."))
-     return
+    session.InformSession(errors.New("Player already created."))
+    return
   }
   info := Info{}
   err := mapstructure.Decode(message.Data, &info)
@@ -179,6 +179,11 @@ func (session *Session) CreatePlayer(message Message) {
   // Send message
   reply := CreateMessage(TypePlayerInfo,info)
   session.WriteQueue <- reply
+
+  Server.ServerMutex.Lock()
+  session.WriteQueue <- CreateMessage(TypeRooms,
+  Server.Rooms)
+  Server.ServerMutex.Unlock()
 }
 
 func CreateMessage(info string, obj interface{}) Message {
@@ -194,12 +199,12 @@ func CreateMessage(info string, obj interface{}) Message {
 
 func (session *Session) JoinRoom(message Message) {
   if (session.Player == nil) {
-     session.InformSession(errors.New("Player does not exist. Cannot join."))
-     return
+    session.InformSession(errors.New("Player does not exist. Cannot join."))
+    return
   }
   if (session.Player.Room != nil) {
-     session.InformSession(errors.New("Player already in some room."))
-     return
+    session.InformSession(errors.New("Player already in some room."))
+    return
   }
   info := Info{}
   err := mapstructure.Decode(message.Data, &info)
@@ -207,7 +212,6 @@ func (session *Session) JoinRoom(message Message) {
     session.InformSession(err)
     return
   }
-  log.Println("Join room")
   log.Println(info.Name)
   Server.ServerMutex.Lock()
   if _, ok := Server.Rooms[info.Name]; !ok {
@@ -218,22 +222,19 @@ func (session *Session) JoinRoom(message Message) {
     session.InformSession(errors.New("Room full."))
     return
   }
-  log.Println("JOIN")
 
+  session.Player.Room = Server.Rooms[info.Name]
   Server.Rooms[info.Name].Players = append(Server.Rooms[info.Name].Players,
-                                           session.Player)
-  log.Println("JOIN")
+  session.Player)
 
   for _, player := range Server.Rooms[info.Name].Players {
-  log.Println("JOIN2")
+    if (player.CurrentSession != nil) {
       player.CurrentSession.WriteQueue <- CreateMessage(TypeRoomInfo,
-                                                        Server.Rooms[info.Name])
+      Server.Rooms[info.Name])
+    }
   }
-  log.Println("JOIN")
   Server.ServerMutex.Unlock()
-  log.Println("JOIN")
   if (len(Server.Rooms[info.Name].Players) == 2) {
-  log.Println("JOIN")
     game := &Game {
       Moves: make([] GameMove, 0),
       CurrentPlayer: 0,
@@ -245,9 +246,9 @@ func (session *Session) JoinRoom(message Message) {
 
 func (session *Session) DoMove(message Message) {
   if (session.Player == nil) {
-     return
-     //session.InformSession(errors.New("Player does not exist. Cannot join."))
-     //return
+    return
+    //session.InformSession(errors.New("Player does not exist. Cannot join."))
+    //return
   }
   if (session.Player.MoveQueue == nil) {
     session.InformSession(errors.New("Don't poke."))
@@ -266,12 +267,12 @@ func (session *Session) DoMove(message Message) {
 
 func (session *Session) CreateRoom(message Message) {
   if (session.Player == nil) {
-     session.InformSession(errors.New("Player does not exist. Cannot join."))
-     return
+    session.InformSession(errors.New("Player does not exist. Cannot join."))
+    return
   }
   if (session.Player.Room != nil) {
-     session.InformSession(errors.New("Player already in some room."))
-     return
+    session.InformSession(errors.New("Player already in some room."))
+    return
   }
 
   info := Info{}
@@ -287,19 +288,21 @@ func (session *Session) CreateRoom(message Message) {
   }
   room := &Room {
     Name: info.Name,
+    Players: make([]*Player, 0),
   }
+
   Server.Rooms[room.Name] = room
 
   Server.ServerMutex.Unlock()
 
-  log.Println("JOIN")
   session.JoinRoom(message)
-  log.Println("JOINed")
 
   Server.ServerMutex.Lock()
   for _, player := range Server.Players {
-    player.CurrentSession.WriteQueue <- CreateMessage(TypeRooms,
-                                                      Server.Rooms)
+    if (player.CurrentSession != nil) {
+      player.CurrentSession.WriteQueue <- CreateMessage(TypeRooms,
+                                                        Server.Rooms)
+    }
   }
   Server.ServerMutex.Unlock()
 }

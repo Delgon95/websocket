@@ -48,6 +48,17 @@ function CreateRoom() {
   socket.send(JSON.stringify(message));
 }
 
+
+function joinRoom(name) {
+  var message = {};
+  message.Info = TypeJoinRoom; 
+  message.Data = {};
+  message.Data.Name = name;
+  socket.send(JSON.stringify(message));
+
+}
+
+
 function getSessionCookie() {
     var name = "Player"+ "=";
     var decodedCookie = decodeURIComponent(document.cookie);
@@ -87,7 +98,7 @@ socket.onmessage = function (msg) {
       doc_roomname.disabled = true;
       break;
     case TypeRooms:
-      ShowRooms(json.Data)
+      ShowRooms(json)
       break;
     case TypeGameInfo:
       context.clearRect(0, 0, canvas.width, canvas.height);
@@ -96,10 +107,12 @@ socket.onmessage = function (msg) {
         var move = json.Data.Moves[i];
         drawPlayingPiece(move.X, move.X, move.PlayerIndex);
       }
+      drawLines(10, lineColor);  
       break;
     case TypeGameMove:
       var move = json.Data;
       drawPlayingPiece(move.X, move.Y, move.PlayerIndex);
+      drawLines(10, lineColor);      
       break;
     case TypeGameOver:
       window.alert("Winner is: " + json.Data.Name);
@@ -107,15 +120,17 @@ socket.onmessage = function (msg) {
   }
 }
 
-function ShowRooms(rooms) {
+function ShowRooms(json) {
   doc_rooms.innerHTML = "";
-  for (var i = 0; i < rooms.length; i++) {
-    addNewRoom(rooms[i], doc_rooms);
+  console.log(json.Info);
+  console.log(json.Data);
+  for (let key in json.Data) {
+    addNewRoom(json.Data[key], doc_rooms);
   }
 }
 
 function addNewRoom(room, tbody) {
-    newRow = table.insertRow(table.rows.length);
+    newRow = tbody.insertRow(tbody.rows.length);
     let cols = "";
     cols += "<td>" + room.Name + "</td>";
     cols += `<td><button type="button" class="btn btn-primary" onclick="joinRoom('${room.Name}')">Join Room</button></td>`;

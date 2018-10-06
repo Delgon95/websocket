@@ -3,7 +3,7 @@ package main
 
 
 type Game struct {
-  Room *Room
+  Room *Room `json:"-"`
   Moves [] GameMove
   CurrentPlayer int
   Table [][] int
@@ -36,7 +36,7 @@ func (game *Game) StartGame() {
     message := CreateMessage(TypeGameMove, move)
     game.Room.Players[0].CurrentSession.WriteQueue <- message
     game.Room.Players[1].CurrentSession.WriteQueue <- message
-
+    game.CurrentPlayer = (game.CurrentPlayer + 1) % 2
     win := game.CheckWin()
     if (win == -1) {
       continue
