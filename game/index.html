@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+
+<html land="en">
+  <head>
+    <meta charset="utf-8">
+    <title> tic tac toe </title>
+    <link rel="stylesheet" type="text/css" href="/game/css/tictactoe.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+  </head>
+  <body>
+    <div class="container-fluid">
+      <div class="row">
+        <div>
+          <label for="playername">Player Name</label>
+          <span class="input-group">
+            <input type="text" class="form-control" id="playername" placeholder="Enter name"/>
+            <button type="button" class="btn btn-primary btn-inline" id="loginButton" onclick="CreatePlayer()">Login</button>
+          </span>
+        </div>
+      </div>
+      <div class="row">
+      </div>
+      <div class="row">
+        <div>
+          <label for="roomname">Room Name</label>
+          <span class="input-group">
+            <input type="text" class="form-control" id="roomname" placeholder="Enter room name"/>
+            <button type="button" class="btn btn-primary btn-inline" id="roomButton" onclick="CreateRoom()">Create Room</button>
+          </span>
+        </div>
+
+      </div>
+      <div class="row">
+        <div class="table-wrapper table-wrapper-scroll ">
+          <table class="table table-striped table-bordered table-hover">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Join</th>
+              </tr>
+            </thead>
+            <tbody id="Rooms">
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="row">
+        <div class="center-wrapper-parent">
+              <canvas id="tictactoe">Canvas is not supported</canvas>
+        </div>
+      </div>
+    </div>
+      <script src="game/js/tictactoe.js"></script>
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+   
+  </body>
+</html>
+
