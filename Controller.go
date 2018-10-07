@@ -6,7 +6,7 @@ import (
   "errors"
   "github.com/gorilla/websocket"
   "github.com/mitchellh/mapstructure"
-  "log"
+  //"log"
 )
 
 const (
@@ -24,6 +24,7 @@ const (
   TypeGameInfo      = "GameInfo"      // client
   TypeGameMove      = "GameMove"      // client
   TypeGameOver      = "GameOver"      // client
+  TypeGameDraw      = "GameDraw"      // client
 )
 
 type Message struct {
@@ -51,6 +52,7 @@ type Info struct {
 type Room struct {
   Name string
   Players [] *Player
+  Game *Game              `json:"-"`
 }
 
 type Rooms struct {
@@ -164,6 +166,7 @@ func (session *Session) CreatePlayer(message Message) {
   Server.ServerMutex.Lock()
   if _, ok := Server.Players[info.Name]; ok {
     session.InformSession(errors.New("Name already taken"))
+    Server.ServerMutex.Unlock()
     return
   }
   player := &Player {
@@ -212,14 +215,15 @@ func (session *Session) JoinRoom(message Message) {
     session.InformSession(err)
     return
   }
-  log.Println(info.Name)
   Server.ServerMutex.Lock()
   if _, ok := Server.Rooms[info.Name]; !ok {
     session.InformSession(errors.New("Room does not exist."))
+    Server.ServerMutex.Unlock()
     return
   }
   if (len(Server.Rooms[info.Name].Players) > 1) {
     session.InformSession(errors.New("Room full."))
+    Server.ServerMutex.Unlock()
     return
   }
 
@@ -240,6 +244,7 @@ func (session *Session) JoinRoom(message Message) {
       CurrentPlayer: 0,
       Room: Server.Rooms[info.Name],
     }
+    Server.Rooms[info.Name].Game = game
     go game.StartGame()
   }
 }
@@ -284,6 +289,7 @@ func (session *Session) CreateRoom(message Message) {
   Server.ServerMutex.Lock()
   if _, ok := Server.Rooms[info.Name]; ok {
     session.InformSession(errors.New("Room does exist."))
+    Server.ServerMutex.Unlock()
     return
   }
   room := &Room {
@@ -308,5 +314,44 @@ func (session *Session) CreateRoom(message Message) {
 }
 
 func (session *Session) Recovery(message Message) {
+  if (session.Player != nil) {
+    session.InformSession(errors.New("Player already created."))
+    return
+  }
+  info := Info{}
+  err := mapstructure.Decode(message.Data, &info)
+  if (err != nil) {
+    session.InformSession(err)
+    return
+  }
+  Server.ServerMutex.Lock()
+  if _, ok := Server.Players[info.Name]; !ok {
+    Server.ServerMutex.Unlock()
+    return
+  }
 
+  player := Server.Players[info.Name]
+  player.CurrentSession = session
+  session.Player = player
+  Server.ServerMutex.Unlock()
+
+  // Send message
+  reply := CreateMessage(TypePlayerInfo,info)
+  session.WriteQueue <- reply
+
+  Server.ServerMutex.Lock()
+  session.WriteQueue <- CreateMessage(TypeRooms,
+                                      Server.Rooms)
+  Server.ServerMutex.Unlock()
+
+  if (player.Room != nil) {
+    player.CurrentSession.WriteQueue <- CreateMessage(TypeRoomInfo,
+                                                      player.Room)
+  } else {
+    return
+  }
+  if (player.Room.Game != nil) {
+    player.CurrentSession.WriteQueue <- CreateMessage(TypeGameInfo,
+                                                      player.Room.Game)
+  }
 }

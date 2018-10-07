@@ -12,6 +12,7 @@ const TypePlayerMove    = "PlayerMove"    // server
 const TypeGameInfo      = "GameInfo"      // client
 const TypeGameMove      = "GameMove"      // client
 const TypeGameOver      = "GameOver"      // client
+const TypeGameDraw      = "GameDraw"      // client
 
 
 var socket = new WebSocket("ws://localhost:8080/upgrade")
@@ -29,6 +30,7 @@ socket.onopen = function () {
     session.Info = TypeRecovery;
     session.Data = {};
     session.Data.Name = getSessionCookie();
+    console.log(session.Data.Name);
     socket.send(JSON.stringify(session));
 }
 
@@ -37,6 +39,7 @@ function CreatePlayer() {
   message.Info = TypeCreatePlayer; 
   message.Data = {};
   message.Data.Name = doc_playername.value;
+  console.log(message.Data.Name);
  socket.send(JSON.stringify(message));
 } 
 
@@ -55,7 +58,6 @@ function joinRoom(name) {
   message.Data = {};
   message.Data.Name = name;
   socket.send(JSON.stringify(message));
-
 }
 
 
@@ -103,9 +105,11 @@ socket.onmessage = function (msg) {
     case TypeGameInfo:
       context.clearRect(0, 0, canvas.width, canvas.height);
       drawLines(10, lineColor);
-      for (var i = 0;i < json.Data.Moves; i++) {
-        var move = json.Data.Moves[i];
-        drawPlayingPiece(move.X, move.X, move.PlayerIndex);
+      console.log(json.Data);
+      for (let key in json.Data.Moves) {
+        console.log("asdasd");
+        var move = json.Data.Moves[key];
+        drawPlayingPiece(move.X, move.Y, move.PlayerIndex);
       }
       drawLines(10, lineColor);  
       break;
@@ -116,6 +120,14 @@ socket.onmessage = function (msg) {
       break;
     case TypeGameOver:
       window.alert("Winner is: " + json.Data.Name);
+      doc_roomname.value = "";
+      doc_roomname.disabled = false;
+      break;
+    case TypeGameDraw:
+      window.alert("Draw! Try harder next time");
+      doc_roomname.value = "";
+      doc_roomname.disabled = false;
+      break;
     break;
   }
 }

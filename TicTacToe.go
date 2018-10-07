@@ -1,9 +1,11 @@
 package main
 
-
+import (
+  //"log"
+)
 
 type Game struct {
-  Room *Room `json:"-"`
+  Room *Room         `json:"-"`
   Moves [] GameMove
   CurrentPlayer int
   Table [][] int
@@ -38,8 +40,30 @@ func (game *Game) StartGame() {
     game.Room.Players[1].CurrentSession.WriteQueue <- message
     game.CurrentPlayer = (game.CurrentPlayer + 1) % 2
     win := game.CheckWin()
+    draw := game.CheckDraw()
     if (win == -1) {
-      continue
+      if (draw == 1) {
+        // Draw
+        info := Info {
+          Name: "Draw",
+        }
+        message = CreateMessage(TypeGameDraw, info)
+        game.Room.Players[0].CurrentSession.WriteQueue <- message
+        game.Room.Players[1].CurrentSession.WriteQueue <- message
+
+        game.Room.Players[0].Room = nil
+        game.Room.Players[1].Room = nil
+        Server.ServerMutex.Lock()
+        delete (Server.Rooms, game.Room.Name)
+        for _, player := range Server.Players {
+          player.CurrentSession.WriteQueue <- CreateMessage(TypeRooms,
+                                                            Server.Rooms)
+        }
+        Server.ServerMutex.Unlock()
+        break;
+      } else {
+        continue
+      }
     }
 
     winner_name := game.Room.Players[win].Name
@@ -53,15 +77,26 @@ func (game *Game) StartGame() {
     game.Room.Players[0].Room = nil
     game.Room.Players[1].Room = nil
     Server.ServerMutex.Lock()
-    Server.Rooms[game.Room.Name] = nil
+    delete (Server.Rooms, game.Room.Name)
     for _, player := range Server.Players {
       player.CurrentSession.WriteQueue <- CreateMessage(TypeRooms,
                                                         Server.Rooms)
     }
     Server.ServerMutex.Unlock()
-    
     break;
   }
+}
+
+func (game *Game) CheckDraw() int {
+  for x := 0; x < 3; x++ {
+    for y := 0; y < 3; y++ {
+      if (game.Table[x][y] == -10) {
+        return 0
+      }
+    }
+  }
+  // No more moves available.
+  return 1
 }
 
 func (game *Game) CheckWin() int {
